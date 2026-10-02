@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { v2 as cloudinary } from 'cloudinary';
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
+import { cookies } from 'next/headers';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-change-this';
 
 // Configure Cloudinary
 cloudinary.config({
@@ -12,12 +16,27 @@ cloudinary.config({
 
 export async function POST(request) {
   try {
+    // 1. Verify the user session cookie and extract publisher_uuid
+    const cookieStore = await cookies();
+    const token = cookieStore.get('vesta_session')?.value;
+
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized: Please log in first' }, { status: 401 });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const publisherUuid = decoded.publisher_uuid;
+
+    if (!publisherUuid) {
+      return NextResponse.json({ error: 'Unauthorized: Missing publisher identity' }, { status: 401 });
+    }
+
     const data = await request.json();
     const listingUuid = crypto.randomUUID();
 
     const uploadedImageUrls = [];
 
-    // 1. Loop through all images from frontend and upload to Cloudinary
+    // 2. Loop through all images from frontend and upload to Cloudinary
     if (Array.isArray(data.images) && data.images.length > 0) {
       for (const img of data.images) {
         if (img.url && img.url.startsWith('data:image')) {
@@ -31,19 +50,21 @@ export async function POST(request) {
       }
     }
 
-    // 2. Extract the main cover image (first item) and format the rest as comma-separated string
+    // 3. Extract the main cover image and format the rest as a string
     const mainImage = uploadedImageUrls.length > 0 ? uploadedImageUrls[0] : null;
     const imagesString = uploadedImageUrls.join(',');
 
+    // 4. Insert including publisher_uuid
     const query = `
       INSERT INTO properties (
-        listing_uuid, reference_id, ad_title, ad_description, operation, property_type, price,
+        publisher_uuid, listing_uuid, reference_id, ad_title, ad_description, operation, property_type, price,
         lot_area, location_address, latitude, longitude, bedrooms, bathrooms, floor_area, 
         contact_phone, contact_email, messenger, main_image, images
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const values = [
+      publisherUuid, // Tied directly to the logged-in user's publisher profile!
       listingUuid,
       data.reference_id || null,
       data.ad_title,
@@ -61,8 +82,8 @@ export async function POST(request) {
       data.contact_phone || null,
       data.contact_email || null,
       data.messenger || null,
-      mainImage,     // Maps to 'main_image' column
-      imagesString,  // Maps to 'images' column (comma-separated URLs)
+      mainImage,
+      imagesString,
     ];
 
     await pool.query(query, values);
@@ -73,16 +94,3 @@ export async function POST(request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
-
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-
-console.log("CHECKING KEYS:", {
-  cloud: process.env.CLOUDINARY_CLOUD_NAME,
-  key: process.env.CLOUDINARY_API_KEY,
-  secretLength: process.env.CLOUDINARY_API_SECRET ? process.env.CLOUDINARY_API_SECRET.length : 0
-});

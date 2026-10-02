@@ -10,30 +10,36 @@ async function getSearchProperties(searchParams) {
     const operation = searchParams?.operation || '';
     const sort = searchParams?.sort || 'latest';
 
-    let query = 'SELECT * FROM properties WHERE 1=1';
+    // JOIN properties with publishers so we can pull publisher_name
+    let query = `
+      SELECT p.*, pub.publisher_name 
+      FROM properties p 
+      LEFT JOIN publishers pub ON p.publisher_uuid = pub.publisher_uuid 
+      WHERE 1=1
+    `;
     let queryParams = [];
 
     if (keyword) {
-      query += ' AND (ad_title LIKE ? OR ad_description LIKE ? OR location_address LIKE ?)';
+      query += ' AND (p.ad_title LIKE ? OR p.ad_description LIKE ? OR p.location_address LIKE ?)';
       queryParams.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
     }
 
     if (type) {
-      query += ' AND property_type = ?';
+      query += ' AND p.property_type = ?';
       queryParams.push(type);
     }
 
     if (operation) {
-      query += ' AND operation = ?';
+      query += ' AND p.operation = ?';
       queryParams.push(operation);
     }
 
     if (sort === 'price_asc') {
-      query += ' ORDER BY price ASC';
+      query += ' ORDER BY p.price ASC';
     } else if (sort === 'price_desc') {
-      query += ' ORDER BY price DESC';
+      query += ' ORDER BY p.price DESC';
     } else {
-      query += ' ORDER BY id DESC';
+      query += ' ORDER BY p.id DESC';
     }
 
     const [rows] = await pool.query(query, queryParams);
@@ -185,7 +191,10 @@ export default async function PropertiesSearchPage({ searchParams }) {
                           <span>🛁 {property.bathrooms || 0} Baths</span>
                           <span>📏 {property.floor_area || 0} sqm</span>
                         </div>
-                        <span className="text-neutral-400">ID: #{property.id}</span>
+                        {/* Display Publisher Name instead of ID */}
+                        <span className="text-neutral-500 font-semibold truncate max-w-[150px]">
+                          {property.publisher_name || 'Vesta Verified'}
+                        </span>
                       </div>
                     </div>
                   </Link>

@@ -166,7 +166,7 @@ export default function PostPropertyPage() {
       }
 
       alert(`Property successfully published! Ref ID: ${finalRefId}`);
-      router.push('/');
+      router.push('/dashboard');
     } catch (err) {
       console.error('Submission error:', err);
       alert(`Error: ${err.message}`);
