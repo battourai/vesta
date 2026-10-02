@@ -101,22 +101,58 @@ export default function PostPropertyPage() {
       finalRefId = `PROP-${Date.now().toString().slice(-6)}-${randomString}`;
     }
 
-    // Grab the base64 string of the first uploaded image to satisfy picture_base64
-    const coverImageBase64 = images.length > 0 ? images[0].url : null;
-
-    const submissionData = {
-      ...formData,
-      reference_id: finalRefId,
-      picture_base64: coverImageBase64, // Passes the safe base64 string to the backend
-      images: images.map((img, index) => ({
-        url: img.url,
-        order: index,
-        isCover: index === 0 ? 1 : 0,
-      })),
-    };
-
     try {
-      // Send data to your database API route
+      // 1. Upload raw files directly to Cloudinary from the browser
+      const uploadedImages = [];
+      
+      for (let i = 0; i < images.length; i++) {
+        const img = images[i];
+        
+        // If it's already a URL (e.g. if you add editing later), keep it; otherwise upload the raw file
+        if (img.file) {
+          const data = new FormData();
+          data.append('file', img.file);
+          data.append('upload_preset', 'vesta_unsigned'); // Your Cloudinary unsigned preset name
+
+          // Replace 'YOUR_CLOUD_NAME' with your actual Cloudinary cloud name string
+          const cloudinaryRes = await fetch(
+            `https://api.cloudinary.com/v1_1/YOUR_CLOUD_NAME/image/upload`,
+            {
+              method: 'POST',
+              body: data,
+            }
+          );
+
+          const fileData = await cloudinaryRes.json();
+          if (!cloudinaryRes.ok) {
+            throw new Error(fileData.error?.message || 'Failed to upload image to Cloudinary');
+          }
+
+          uploadedImages.push({
+            url: fileData.secure_url,
+            order: i,
+            isCover: i === 0 ? 1 : 0,
+          });
+        } else {
+          uploadedImages.push({
+            url: img.url,
+            order: i,
+            isCover: i === 0 ? 1 : 0,
+          });
+        }
+      }
+
+      // 2. Prepare the clean JSON payload (completely bypassing Vercel size limits)
+      const coverImageBase64 = uploadedImages.length > 0 ? uploadedImages[0].url : null;
+
+      const submissionData = {
+        ...formData,
+        reference_id: finalRefId,
+        picture_base64: coverImageBase64, 
+        images: uploadedImages,
+      };
+
+      // 3. Send lightweight text/URL data to your database API route
       const res = await fetch('/api/properties', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -129,14 +165,11 @@ export default function PostPropertyPage() {
         throw new Error(data.error || 'Failed to save property to database');
       }
 
-      // Success feedback before redirecting
       alert(`Property successfully published! Ref ID: ${finalRefId}`);
-
-      // Redirect back to the homepage
       router.push('/');
     } catch (err) {
       console.error('Submission error:', err);
-      alert(`Database Error: ${err.message}`);
+      alert(`Error: ${err.message}`);
     }
   };
 

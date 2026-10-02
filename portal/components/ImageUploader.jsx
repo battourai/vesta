@@ -51,7 +51,7 @@ function SortableImageItem({ id, url, index, onRemove }) {
         ⠿
       </div>
 
-      {/* Delete Button (Now clicks reliably!) */}
+      {/* Delete Button */}
       <button
         type="button"
         onClick={() => onRemove(id)}
@@ -76,17 +76,14 @@ export default function ImageUploader({ images, setImages }) {
     const files = Array.from(e.target.files);
     
     files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result; // This is a safe base64 string for Cloudinary/JSON
-        const newItem = {
-          id: Math.random().toString(36).substring(2, 9),
-          file: file,
-          url: base64String, // Store base64 as the url preview and upload data
-        };
-        setImages((prev) => [...prev, newItem]);
+      // Create a lightweight local blob URL for instant preview (bypasses heavy base64 strings)
+      const previewUrl = URL.createObjectURL(file);
+      const newItem = {
+        id: Math.random().toString(36).substring(2, 9),
+        file: file, // Keep the raw file object for direct cloud uploading later
+        url: previewUrl, 
       };
-      reader.readAsDataURL(file);
+      setImages((prev) => [...prev, newItem]);
     });
   };
 
