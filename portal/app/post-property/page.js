@@ -116,7 +116,7 @@ export default function PostPropertyPage() {
 
           // Replace 'YOUR_CLOUD_NAME' with your actual Cloudinary cloud name string
           const cloudinaryRes = await fetch(
-            `https://api.cloudinary.com/v1_1/YOUR_CLOUD_NAME/image/upload`,
+            `https://api.cloudinary.com/v1_1/qq1axqlm/image/upload`,
             {
               method: 'POST',
               body: data,
