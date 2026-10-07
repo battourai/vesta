@@ -15,7 +15,7 @@ export default function PropertyDetailPage() {
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState('');
 
-  // Inquiry form states
+  // Inquiry form states with default message prefilled
   const [inquiryForm, setInquiryForm] = useState({
     sender_name: '',
     sender_email: '',
@@ -59,8 +59,12 @@ export default function PropertyDetailPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          property_id: property.id,
-          ...inquiryForm,
+          listing_uuid: property.listing_uuid || property.id,
+          sender_name: inquiryForm.sender_name,
+          sender_email: inquiryForm.sender_email,
+          sender_phone: inquiryForm.sender_phone,
+          // Fallback to default message if empty or whitespace only
+          message: inquiryForm.message.trim() || 'Hello, I am interested in this property. Please contact me back.',
         }),
       });
 
@@ -71,7 +75,7 @@ export default function PropertyDetailPage() {
           sender_name: '',
           sender_email: '',
           sender_phone: '',
-          message: '',
+          message: 'Hello, I am interested in this property. Please contact me back.',
         });
       } else {
         alert(data.error || 'Failed to send inquiry');
@@ -149,7 +153,7 @@ export default function PropertyDetailPage() {
               )}
             </div>
 
-            {/* Title, Operation Badge, Ref ID, Address, and Prominent Price Card (Fully Responsive for Long Titles) */}
+            {/* Title, Operation Badge, Ref ID, Address, and Prominent Price Card */}
             <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6 space-y-4">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div className="space-y-2 w-full md:w-3/4">
@@ -256,7 +260,7 @@ export default function PropertyDetailPage() {
                       required
                       value={inquiryForm.sender_name}
                       onChange={(e) => setInquiryForm({ ...inquiryForm, sender_name: e.target.value })}
-                      className="w-full border border-neutral-300 rounded-md p-2"
+                      className="w-full border border-neutral-300 rounded-md p-2 text-neutral-900 placeholder-neutral-400 bg-white"
                       placeholder="John Doe"
                     />
                   </div>
@@ -267,7 +271,7 @@ export default function PropertyDetailPage() {
                       required
                       value={inquiryForm.sender_email}
                       onChange={(e) => setInquiryForm({ ...inquiryForm, sender_email: e.target.value })}
-                      className="w-full border border-neutral-300 rounded-md p-2"
+                      className="w-full border border-neutral-300 rounded-md p-2 text-neutral-900 placeholder-neutral-400 bg-white"
                       placeholder="john@example.com"
                     />
                   </div>
@@ -277,7 +281,7 @@ export default function PropertyDetailPage() {
                       type="text"
                       value={inquiryForm.sender_phone}
                       onChange={(e) => setInquiryForm({ ...inquiryForm, sender_phone: e.target.value })}
-                      className="w-full border border-neutral-300 rounded-md p-2"
+                      className="w-full border border-neutral-300 rounded-md p-2 text-neutral-900 placeholder-neutral-400 bg-white"
                       placeholder="09171234567"
                     />
                   </div>
@@ -288,7 +292,7 @@ export default function PropertyDetailPage() {
                       required
                       value={inquiryForm.message}
                       onChange={(e) => setInquiryForm({ ...inquiryForm, message: e.target.value })}
-                      className="w-full border border-neutral-300 rounded-md p-2"
+                      className="w-full border border-neutral-300 rounded-md p-2 text-neutral-900 placeholder-neutral-400 bg-white"
                     />
                   </div>
                   <button
