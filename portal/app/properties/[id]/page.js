@@ -15,6 +15,16 @@ export default function PropertyDetailPage() {
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState('');
 
+  // Inquiry form states
+  const [inquiryForm, setInquiryForm] = useState({
+    sender_name: '',
+    sender_email: '',
+    sender_phone: '',
+    message: 'Hello, I am interested in this property. Please contact me back.',
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
+
   useEffect(() => {
     if (!id) return;
 
@@ -39,6 +49,40 @@ export default function PropertyDetailPage() {
     fetchProperty();
   }, [id]);
 
+  const handleInquirySubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setSuccessMsg('');
+
+    try {
+      const res = await fetch('/api/inquiries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          property_id: property.id,
+          ...inquiryForm,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setSuccessMsg('Inquiry sent successfully! The agent will reach out to you soon.');
+        setInquiryForm({
+          sender_name: '',
+          sender_email: '',
+          sender_phone: '',
+          message: '',
+        });
+      } else {
+        alert(data.error || 'Failed to send inquiry');
+      }
+    } catch (err) {
+      console.error('Inquiry error:', err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading) {
     return <div className="text-center py-20 text-neutral-500 font-medium">Loading property details...</div>;
   }
@@ -61,7 +105,7 @@ export default function PropertyDetailPage() {
   return (
     <main className="min-h-screen bg-neutral-100 pb-16">
       
-      {/* Top Header Navigation / Back Link Bar (Simplified now since title moved) */}
+      {/* Top Header Navigation / Back Link Bar */}
       <div className="bg-white border-b border-neutral-200 shadow-sm py-4 px-4 sm:px-6 lg:px-8 mb-8">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Property Listing View</span>
@@ -75,7 +119,7 @@ export default function PropertyDetailPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           
-          {/* Left 2 Columns: Photos, Title/Address/RefID Card, Specs, Description, Map */}
+          {/* Left 2 Columns: Photos, Title/Address/Price Card, Specs, Description, Map */}
           <div className="lg:col-span-2 space-y-6">
             
             {/* Image Gallery Box */}
@@ -105,22 +149,34 @@ export default function PropertyDetailPage() {
               )}
             </div>
 
-            {/* Title, Operation Badge, Ref ID, and Address Card (Placed Directly Below Photo) */}
-            <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6 space-y-3">
-              <div className="flex items-center gap-3">
-                <span className="bg-neutral-900 text-white text-xs font-semibold px-2.5 py-1 rounded uppercase">
-                  {property.operation || 'For Sale'}
-                </span>
-                <span className="text-neutral-400 text-xs font-medium">Ref ID: #{property.id}</span>
-              </div>
-              
-              <h1 className="text-xl sm:text-2xl font-extrabold text-neutral-900 leading-snug">
-                {title}
-              </h1>
+            {/* Title, Operation Badge, Ref ID, Address, and Prominent Price Card (Fully Responsive for Long Titles) */}
+            <div className="bg-white rounded-xl shadow-sm border border-neutral-200 p-6 space-y-4">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div className="space-y-2 w-full md:w-3/4">
+                  <div className="flex items-center gap-3">
+                    <span className="bg-neutral-900 text-white text-xs font-semibold px-2.5 py-1 rounded uppercase">
+                      {property.operation || 'For Sale'}
+                    </span>
+                    <span className="text-neutral-400 text-xs font-medium">Ref ID: #{property.id}</span>
+                  </div>
+                  
+                  <h1 className="text-xl sm:text-2xl font-extrabold text-neutral-900 leading-snug break-words">
+                    {title}
+                  </h1>
 
-              <p className="text-neutral-600 text-xs sm:text-sm flex items-center gap-1.5">
-                📍 {property.location_address || 'Location not specified'}
-              </p>
+                  <p className="text-neutral-600 text-xs sm:text-sm flex items-center gap-1.5">
+                    📍 {property.location_address || 'Location not specified'}
+                  </p>
+                </div>
+
+                {/* Price Display */}
+                <div className="w-full md:w-auto md:text-right shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-neutral-100">
+                  <span className="text-xs text-neutral-400 block font-medium">Asking Price</span>
+                  <div className="text-2xl sm:text-3xl font-black text-neutral-900">
+                    PHP {Number(property.price || 0).toLocaleString()}
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Property Specs Card */}
@@ -160,6 +216,7 @@ export default function PropertyDetailPage() {
                 <h2 className="text-base font-bold text-neutral-900 mb-3">Location Map</h2>
                 <div className="h-[300px] rounded-lg overflow-hidden border border-neutral-200">
                   <PropertyMap
+                    key={property.id}
                     latitude={Number(property.latitude)}
                     longitude={Number(property.longitude)}
                     setCoordinates={() => {}}
@@ -170,33 +227,79 @@ export default function PropertyDetailPage() {
             )}
           </div>
 
-          {/* Right 1 Column: Contact Box & Banners */}
+          {/* Right 1 Column: Publisher Agency & Contact Inquiry Form */}
           <div className="space-y-6">
             
-            {/* Price & Contact Box */}
+            {/* Contact & Inquiry Box */}
             <div className="bg-white p-6 rounded-xl border border-neutral-200 shadow-sm space-y-4">
-              <div>
-                <span className="text-xs text-neutral-400 block">Asking Price</span>
-                <div className="text-2xl font-extrabold text-neutral-900">
-                  PHP {Number(property.price || 0).toLocaleString()}
+              
+              {/* Publisher Agency Name Badge */}
+              <div className="bg-neutral-50 p-3 rounded-lg border border-neutral-100 text-xs">
+                <span className="text-neutral-400 block mb-0.5">Listed By Agency</span>
+                <span className="font-bold text-neutral-900 text-sm">
+                  {property.publisher_name || 'Independent Publisher'}
+                </span>
+              </div>
+
+              <h3 className="text-sm font-bold text-neutral-900">Contact Agent / Send Inquiry</h3>
+
+              {successMsg ? (
+                <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-3 rounded-lg text-xs font-medium text-center">
+                  {successMsg}
                 </div>
-              </div>
-
-              <hr className="border-neutral-100" />
-
-              <h3 className="text-sm font-bold text-neutral-900">Contact Agent / Owner</h3>
-              <div className="space-y-2 text-xs text-neutral-600">
-                <p><strong>Phone:</strong> {property.contact_phone || 'Not provided'}</p>
-                <p><strong>Email:</strong> {property.contact_email || 'Not provided'}</p>
-                {property.messenger && <p><strong>Messenger:</strong> {property.messenger}</p>}
-              </div>
-
-              <button
-                onClick={() => alert(`Inquiry sent to listing contact regarding ID: ${property.id}`)}
-                className="w-full bg-neutral-900 hover:bg-neutral-800 text-white py-2.5 rounded-lg font-medium transition text-xs shadow-sm"
-              >
-                Send Inquiry
-              </button>
+              ) : (
+                <form onSubmit={handleInquirySubmit} className="space-y-3 text-xs">
+                  <div>
+                    <label className="block text-neutral-600 font-medium mb-1">Your Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={inquiryForm.sender_name}
+                      onChange={(e) => setInquiryForm({ ...inquiryForm, sender_name: e.target.value })}
+                      className="w-full border border-neutral-300 rounded-md p-2"
+                      placeholder="John Doe"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-neutral-600 font-medium mb-1">Email Address</label>
+                    <input
+                      type="email"
+                      required
+                      value={inquiryForm.sender_email}
+                      onChange={(e) => setInquiryForm({ ...inquiryForm, sender_email: e.target.value })}
+                      className="w-full border border-neutral-300 rounded-md p-2"
+                      placeholder="john@example.com"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-neutral-600 font-medium mb-1">Phone Number</label>
+                    <input
+                      type="text"
+                      value={inquiryForm.sender_phone}
+                      onChange={(e) => setInquiryForm({ ...inquiryForm, sender_phone: e.target.value })}
+                      className="w-full border border-neutral-300 rounded-md p-2"
+                      placeholder="09171234567"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-neutral-600 font-medium mb-1">Message</label>
+                    <textarea
+                      rows="3"
+                      required
+                      value={inquiryForm.message}
+                      onChange={(e) => setInquiryForm({ ...inquiryForm, message: e.target.value })}
+                      className="w-full border border-neutral-300 rounded-md p-2"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="w-full bg-neutral-900 hover:bg-neutral-800 text-white py-2.5 rounded-lg font-medium transition text-xs shadow-sm disabled:opacity-50"
+                  >
+                    {submitting ? 'Sending...' : 'Send Inquiry Message'}
+                  </button>
+                </form>
+              )}
             </div>
 
             {/* Additional Banner 1: Post Property / Sell */}

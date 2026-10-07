@@ -3,9 +3,9 @@ import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
 
-async function getProperties() {
+async function getFeaturedProperties() {
   try {
-    const [rows] = await pool.query('SELECT * FROM properties ORDER BY id DESC');
+    const [rows] = await pool.query('SELECT * FROM properties ORDER BY id DESC LIMIT 6');
     return rows;
   } catch (error) {
     console.error('Database connection error:', error.message);
@@ -14,7 +14,7 @@ async function getProperties() {
 }
 
 export default async function Home() {
-  const properties = await getProperties();
+  const properties = await getFeaturedProperties();
 
   return (
     <div className="min-h-screen bg-neutral-50 text-neutral-900 font-sans">
@@ -28,16 +28,18 @@ export default async function Home() {
             Explore curated properties across prime locations with a seamless search experience.
           </p>
           
-          <div className="bg-white p-2 rounded-2xl shadow-lg border border-neutral-200 flex flex-col sm:flex-row gap-2">
+          {/* Search Form pointing to your dedicated properties results page */}
+          <form method="GET" action="/properties" className="bg-white p-2 rounded-2xl shadow-lg border border-neutral-200 flex flex-col sm:flex-row gap-2">
             <input 
               type="text" 
+              name="q"
               placeholder="Search location, city, or property..." 
               className="flex-1 px-4 py-3 text-sm focus:outline-none bg-transparent"
             />
-            <button className="bg-neutral-900 text-white font-medium px-6 py-3 rounded-xl hover:bg-neutral-800 transition-colors text-sm">
+            <button type="submit" className="bg-neutral-900 text-white font-medium px-6 py-3 rounded-xl hover:bg-neutral-800 transition-colors text-sm">
               Search
             </button>
-          </div>
+          </form>
         </div>
       </section>
 

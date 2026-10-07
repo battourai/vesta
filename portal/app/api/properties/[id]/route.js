@@ -3,12 +3,14 @@ import pool from '@/lib/db';
 
 export async function GET(request, { params }) {
   try {
-    // Await params for Next.js dynamic routing
-    const resolvedParams = await params;
-    const { id } = resolvedParams;
+    const { id } = await params;
 
+    // Fetch property joined with publisher info using listing_uuid (or id depending on your route setup)
     const [rows] = await pool.query(
-      'SELECT * FROM properties WHERE id = ? OR listing_uuid = ?',
+      `SELECT p.*, pub.publisher_name 
+       FROM properties p 
+       LEFT JOIN publishers pub ON p.publisher_uuid = pub.publisher_uuid 
+       WHERE p.id = ? OR p.listing_uuid = ?`,
       [id, id]
     );
 
@@ -18,7 +20,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(rows[0], { status: 200 });
   } catch (error) {
-    console.error('Failed to fetch property details:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Error fetching property detail:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
