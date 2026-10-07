@@ -15,11 +15,12 @@ export default function PropertyDetailPage() {
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState('');
 
-  // Inquiry form states with default message prefilled
+  // Inquiry form states with separate country code and phone number fields
   const [inquiryForm, setInquiryForm] = useState({
     sender_name: '',
     sender_email: '',
-    sender_phone: '',
+    country_code: '+63',
+    phone_number: '',
     message: 'Hello, I am interested in this property. Please contact me back.',
   });
   const [submitting, setSubmitting] = useState(false);
@@ -54,6 +55,10 @@ export default function PropertyDetailPage() {
     setSubmitting(true);
     setSuccessMsg('');
 
+    // Sanitize local number by removing spaces, dashes, and any non-digit characters, then combine with country code
+    const cleanDigits = inquiryForm.phone_number.replace(/\D/g, '');
+    const formattedPhone = cleanDigits ? `${inquiryForm.country_code}${cleanDigits}` : null;
+
     try {
       const res = await fetch('/api/inquiries', {
         method: 'POST',
@@ -62,8 +67,7 @@ export default function PropertyDetailPage() {
           listing_uuid: property.listing_uuid || property.id,
           sender_name: inquiryForm.sender_name,
           sender_email: inquiryForm.sender_email,
-          sender_phone: inquiryForm.sender_phone,
-          // Fallback to default message if empty or whitespace only
+          sender_phone: formattedPhone,
           message: inquiryForm.message.trim() || 'Hello, I am interested in this property. Please contact me back.',
         }),
       });
@@ -74,7 +78,8 @@ export default function PropertyDetailPage() {
         setInquiryForm({
           sender_name: '',
           sender_email: '',
-          sender_phone: '',
+          country_code: '+63',
+          phone_number: '',
           message: 'Hello, I am interested in this property. Please contact me back.',
         });
       } else {
@@ -277,13 +282,29 @@ export default function PropertyDetailPage() {
                   </div>
                   <div>
                     <label className="block text-neutral-600 font-medium mb-1">Phone Number</label>
-                    <input
-                      type="text"
-                      value={inquiryForm.sender_phone}
-                      onChange={(e) => setInquiryForm({ ...inquiryForm, sender_phone: e.target.value })}
-                      className="w-full border border-neutral-300 rounded-md p-2 text-neutral-900 placeholder-neutral-400 bg-white"
-                      placeholder="09171234567"
-                    />
+                    <div className="flex gap-2">
+                      <select
+                        value={inquiryForm.country_code}
+                        onChange={(e) => setInquiryForm({ ...inquiryForm, country_code: e.target.value })}
+                        className="border border-neutral-300 rounded-md p-2 text-neutral-900 bg-white text-xs font-medium shrink-0"
+                      >
+                        <option value="+63">🇵🇭 +63</option>
+                        <option value="+1">🇺🇸 +1</option>
+                        <option value="+44">🇬🇧 +44</option>
+                        <option value="+65">🇸🇬 +65</option>
+                        <option value="+81">🇯🇵 +81</option>
+                        <option value="+82">🇰🇷 +82</option>
+                        <option value="+61">🇦🇺 +61</option>
+                        <option value="+971">🇦🇪 +971</option>
+                      </select>
+                      <input
+                        type="text"
+                        value={inquiryForm.phone_number}
+                        onChange={(e) => setInquiryForm({ ...inquiryForm, phone_number: e.target.value })}
+                        className="w-full border border-neutral-300 rounded-md p-2 text-neutral-900 placeholder-neutral-400 bg-white"
+                        placeholder="9171112233"
+                      />
+                    </div>
                   </div>
                   <div>
                     <label className="block text-neutral-600 font-medium mb-1">Message</label>
