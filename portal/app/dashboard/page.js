@@ -258,7 +258,13 @@ export default async function DashboardPage({ searchParams }) {
                                     ✏️ Edit
                                   </Link>
                                   <Link
-                                    href={`/properties/${property.id}`}
+                                    href={`/properties/${
+                                      property.ad_title
+                                        ? property.ad_title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') +
+                                          '_' +
+                                          (property.listing_uuid ? property.listing_uuid.slice(-6) : property.id)
+                                        : property.listing_uuid || property.id
+                                    }`}
                                     className="bg-neutral-900 hover:bg-neutral-800 text-white font-semibold px-3 py-1.5 rounded-md transition text-xs"
                                   >
                                     View
