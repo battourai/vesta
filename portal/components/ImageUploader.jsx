@@ -125,8 +125,8 @@ export default function ImageUploader({ images, setImages }) {
           <div className="flex flex-wrap gap-3">
             {images.map((img, index) => (
               <SortableImageItem
-                key={img.id}
-                id={img.id}
+                key={img.id || index}
+                id={img.id || index}
                 url={img.url}
                 index={index}
                 onRemove={handleRemove}

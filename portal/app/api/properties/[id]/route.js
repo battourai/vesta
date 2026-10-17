@@ -55,3 +55,83 @@ export async function GET(request, { params }) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
+
+export async function PUT(request, { params }) {
+  try {
+    const resolvedParams = await params;
+    const rawId = resolvedParams?.id;
+
+    const identifier = rawId && rawId.includes('_') ? rawId.split('_').pop() : rawId;
+
+    if (!identifier) {
+      return NextResponse.json({ error: 'Property identifier missing' }, { status: 400 });
+    }
+
+    const body = await request.json();
+    const {
+      reference_id,
+      operation,
+      price,
+      property_type,
+      lot_area,
+      floor_area,
+      bedrooms,
+      bathrooms,
+      ad_title,
+      ad_description,
+      location_address,
+      latitude,
+      longitude,
+      contact_phone,
+      contact_email,
+      picture_base64,
+      images,
+    } = body;
+
+    // Convert images array into a comma-separated string if provided
+    const imagesString = Array.isArray(images) 
+      ? images.map((img) => (typeof img === 'string' ? img : img.url)).join(',') 
+      : null;
+
+    // Update all property details safely
+    const [result] = await pool.query(
+      `UPDATE properties 
+       SET reference_id = ?, operation = ?, price = ?, property_type = ?, 
+           lot_area = ?, floor_area = ?, bedrooms = ?, bathrooms = ?, 
+           ad_title = ?, ad_description = ?, location_address = ?, 
+           latitude = ?, longitude = ?, contact_phone = ?, contact_email = ?,
+           main_image = COALESCE(?, main_image), images = COALESCE(?, images)
+       WHERE listing_uuid LIKE ? OR CAST(id AS CHAR) = ?`,
+      [
+        reference_id || null,
+        operation || 'Sale',
+        price || 0,
+        property_type || 'House',
+        lot_area || null,
+        floor_area || null,
+        bedrooms || null,
+        bathrooms || null,
+        ad_title,
+        ad_description,
+        location_address,
+        latitude || null,
+        longitude || null,
+        contact_phone || null,
+        contact_email || null,
+        picture_base64 || null,
+        imagesString || null,
+        `%${identifier}`,
+        identifier,
+      ]
+    );
+
+    if (result.affectedRows === 0) {
+      return NextResponse.json({ error: 'Property not found or no changes made' }, { status: 404 });
+    }
+
+    return NextResponse.json({ message: 'Property updated successfully' }, { status: 200 });
+  } catch (error) {
+    console.error('Update database error:', error.message);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
