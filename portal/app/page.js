@@ -1,5 +1,6 @@
 import pool from '@/lib/db';
 import Link from 'next/link';
+import { slugifyProperty } from '@/lib/slugify';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,7 +33,7 @@ export default async function Home() {
           <form method="GET" action="/properties" className="bg-white p-2 rounded-2xl shadow-lg border border-neutral-200 flex flex-col sm:flex-row gap-2">
             <input 
               type="text" 
-              name="q"
+              name="keyword"
               placeholder="Search location, city, or property..." 
               className="flex-1 px-4 py-3 text-sm focus:outline-none bg-transparent"
             />
@@ -62,7 +63,7 @@ export default async function Home() {
             {properties.map((property) => (
               <Link 
                 key={property.id} 
-                href={`/properties/${property.id}`}
+                href={`/properties/${slugifyProperty(property)}`}
                 className="bg-white rounded-2xl border border-neutral-200 overflow-hidden hover:shadow-md transition-shadow block cursor-pointer group"
               >
                 <div className="h-48 bg-neutral-200 flex items-center justify-center text-neutral-400 text-sm font-medium overflow-hidden">

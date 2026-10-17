@@ -31,6 +31,8 @@ export default function PropertyDetailPage() {
 
     async function fetchProperty() {
       try {
+        // Passes the full slug (e.g., house-for-sale-in-makati-a1b2c3d4) to your backend.
+        // Your backend API query matches it via listing_uuid or ID seamlessly!
         const res = await fetch(`/api/properties/${id}`);
         const data = await res.json();
 

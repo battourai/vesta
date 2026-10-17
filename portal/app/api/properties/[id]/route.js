@@ -1,17 +1,21 @@
-import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { NextResponse } from 'next/server';
 
 export async function GET(request, { params }) {
   try {
     const { id } = await params;
 
-    // Fetch property joined with publisher info using listing_uuid (or id depending on your route setup)
+    // Extract the short suffix from the end of the slug
+    const identifier = id && id.includes('_') ? id.split('_').pop() : id;
+
+    if (!identifier) {
+      return NextResponse.json({ error: 'Property identifier missing' }, { status: 400 });
+    }
+
+    // Use LIKE '%identifier' to match the tail-end of the UUID, or match the exact numeric ID
     const [rows] = await pool.query(
-      `SELECT p.*, pub.publisher_name 
-       FROM properties p 
-       LEFT JOIN publishers pub ON p.publisher_uuid = pub.publisher_uuid 
-       WHERE p.id = ? OR p.listing_uuid = ?`,
-      [id, id]
+      'SELECT * FROM properties WHERE listing_uuid LIKE ? OR id = ?',
+      [`%${identifier}`, identifier]
     );
 
     if (rows.length === 0) {
@@ -20,7 +24,7 @@ export async function GET(request, { params }) {
 
     return NextResponse.json(rows[0], { status: 200 });
   } catch (error) {
-    console.error('Error fetching property detail:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error('Database error:', error.message);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import pool from '@/lib/db';
+import { slugifyProperty } from '@/lib/slugify';
 
 export const dynamic = 'force-dynamic';
 
@@ -141,7 +142,7 @@ export default async function PropertiesSearchPage({ searchParams }) {
                 return (
                   <Link
                     key={property.id}
-                    href={`/properties/${property.id}`}
+                    href={`/properties/${slugifyProperty(property)}`}
                     className="bg-white rounded-xl shadow-sm border border-neutral-200 overflow-hidden flex flex-col sm:flex-row hover:border-neutral-400 hover:shadow-md transition group"
                   >
                     {/* Fixed Height Thumbnail Image Container */}
