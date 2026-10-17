@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
 import pool from '@/lib/db';
+import ProfileForm from '@/components/ProfileForm';
 
 export const dynamic = 'force-dynamic';
 
@@ -150,22 +151,22 @@ export default async function DashboardPage({ searchParams }) {
               </span>
             </Link>
 
-            <div className="pt-4 mt-4 border-t border-neutral-100">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 px-3 pb-2 block">
-                Publisher Info
-              </span>
-              <div className="px-3 py-2 text-xs text-neutral-600 space-y-1">
-                <p className="font-medium text-neutral-900 truncate">{publisher?.publisher_name || 'Independent'}</p>
-                <p className="truncate text-neutral-500">{publisher?.email || user.email}</p>
-                <p className="text-neutral-500">{publisher?.phone || 'No phone registered'}</p>
-              </div>
-            </div>
+            <Link
+              href="/dashboard?tab=profile"
+              className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold transition ${
+                activeTab === 'profile'
+                  ? 'bg-neutral-900 text-white shadow-sm'
+                  : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
+              }`}
+            >
+              <span>🏢 Publisher Profile</span>
+            </Link>
           </aside>
 
           {/* Right Main Panel */}
           <div className="lg:col-span-3 space-y-6">
             
-            {/* TAB 1: LISTINGS IN TABLE LIST VIEW */}
+            {/* TAB 1: LISTINGS */}
             {activeTab === 'listings' && (
               <div>
                 <div className="flex justify-between items-center mb-6">
@@ -200,36 +201,22 @@ export default async function DashboardPage({ searchParams }) {
                         <tbody className="divide-y divide-neutral-100 text-xs">
                           {properties.map((property) => (
                             <tr key={property.id} className="hover:bg-neutral-50/80 transition">
-                              
-                              {/* Thumbnail, Title, Location */}
                               <td className="py-3.5 px-4">
                                 <div className="flex items-center gap-3">
                                   <div className="w-14 h-14 bg-neutral-200 rounded-lg overflow-hidden shrink-0 border border-neutral-200">
                                     {property.main_image ? (
-                                      <img
-                                        src={property.main_image}
-                                        alt={property.ad_title}
-                                        className="w-full h-full object-cover"
-                                      />
+                                      <img src={property.main_image} alt={property.ad_title} className="w-full h-full object-cover" />
                                     ) : (
-                                      <div className="w-full h-full flex items-center justify-center text-neutral-400 text-[10px]">
-                                        No Image
-                                      </div>
+                                      <div className="w-full h-full flex items-center justify-center text-neutral-400 text-[10px]">No Image</div>
                                     )}
                                   </div>
                                   <div className="min-w-0">
-                                    <span className="font-bold text-neutral-900 block truncate max-w-[220px] sm:max-w-xs">
-                                      {property.ad_title}
-                                    </span>
-                                    <span className="text-neutral-500 text-[11px] block truncate max-w-[220px] sm:max-w-xs">
-                                      📍 {property.location_address || 'Unspecified location'}
-                                    </span>
+                                    <span className="font-bold text-neutral-900 block truncate max-w-[220px] sm:max-w-xs">{property.ad_title}</span>
+                                    <span className="text-neutral-500 text-[11px] block truncate max-w-[220px] sm:max-w-xs">📍 {property.location_address || 'Unspecified location'}</span>
                                     <span className="text-[10px] text-neutral-400 font-medium">Ref ID: {property.reference_id || `#${property.id}`}</span>
                                   </div>
                                 </div>
                               </td>
-
-                              {/* Specs & Operation */}
                               <td className="py-3.5 px-4 align-middle">
                                 <span className="inline-block bg-neutral-900 text-white text-[10px] font-semibold px-2 py-0.5 rounded uppercase mb-1">
                                   {property.operation || 'For Sale'}
@@ -240,21 +227,12 @@ export default async function DashboardPage({ searchParams }) {
                                   <span>📏 {property.floor_area || 0} sqm</span>
                                 </div>
                               </td>
-
-                              {/* Price */}
                               <td className="py-3.5 px-4 align-middle">
-                                <span className="font-extrabold text-neutral-900 text-sm block">
-                                  ₱{Number(property.price || 0).toLocaleString()}
-                                </span>
+                                <span className="font-extrabold text-neutral-900 text-sm block">₱{Number(property.price || 0).toLocaleString()}</span>
                               </td>
-
-                              {/* Action Buttons: Edit & View */}
                               <td className="py-3.5 px-4 align-middle text-right">
                                 <div className="flex items-center justify-end gap-2">
-                                  <Link
-                                    href={`/edit-property/${property.id}`}
-                                    className="bg-neutral-100 hover:bg-neutral-200 text-neutral-900 font-semibold px-3 py-1.5 rounded-md transition text-xs border border-neutral-300"
-                                  >
+                                  <Link href={`/edit-property/${property.id}`} className="bg-neutral-100 hover:bg-neutral-200 text-neutral-900 font-semibold px-3 py-1.5 rounded-md transition text-xs border border-neutral-300">
                                     ✏️ Edit
                                   </Link>
                                   <Link
@@ -271,7 +249,6 @@ export default async function DashboardPage({ searchParams }) {
                                   </Link>
                                 </div>
                               </td>
-
                             </tr>
                           ))}
                         </tbody>
@@ -282,7 +259,7 @@ export default async function DashboardPage({ searchParams }) {
               </div>
             )}
 
-            {/* TAB 2: INQUIRIES / LEADS */}
+            {/* TAB 2: INQUIRIES */}
             {activeTab === 'inquiries' && (
               <div>
                 <div className="flex justify-between items-center mb-6">
@@ -311,11 +288,9 @@ export default async function DashboardPage({ searchParams }) {
                             {new Date(inquiry.created_at).toLocaleDateString()} at {new Date(inquiry.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
-
                         <p className="text-xs text-neutral-700 bg-neutral-50 p-3 rounded-lg border border-neutral-100 leading-relaxed">
                           "{inquiry.message}"
                         </p>
-
                         <div className="flex flex-wrap items-center gap-4 text-xs pt-1">
                           <a href={`mailto:${inquiry.sender_email}`} className="text-neutral-900 font-semibold hover:underline flex items-center gap-1">
                             ✉️ {inquiry.sender_email}
@@ -330,6 +305,16 @@ export default async function DashboardPage({ searchParams }) {
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* TAB 3: PROFILE SETTINGS */}
+            {activeTab === 'profile' && (
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-lg font-bold text-neutral-900">Publisher Profile & Agency Settings</h2>
+                </div>
+                <ProfileForm publisher={publisher} />
               </div>
             )}
 

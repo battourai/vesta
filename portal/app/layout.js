@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
 import pool from '@/lib/db';
-import LogoutButton from '@/components/LogoutButton'; // Import the client button
+import LogoutButton from '@/components/LogoutButton';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-key-change-this';
 
@@ -17,11 +17,11 @@ async function getLoggedInPublisher() {
     if (!decoded?.publisher_uuid) return null;
 
     const [rows] = await pool.query(
-      'SELECT publisher_name FROM publishers WHERE publisher_uuid = ?',
+      'SELECT publisher_name, logo_url FROM publishers WHERE publisher_uuid = ?',
       [decoded.publisher_uuid]
     );
 
-    return rows[0] || { publisher_name: 'My Dashboard' };
+    return rows[0] || { publisher_name: 'My Dashboard', logo_url: null };
   } catch (error) {
     return null;
   }
@@ -43,24 +43,39 @@ export default async function RootLayout({ children }) {
         <header className="bg-white border-b border-neutral-200 sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
             
-            {/* Logo */}
+            {/* Logo / Brand Home */}
             <Link href="/" className="text-xl font-black tracking-tight text-neutral-900">
               Vesta<span className="text-blue-600">.ph</span>
             </Link>
 
             {/* Dynamic Navigation Action */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               {publisher ? (
-                // When Logged In: Show Agency Name Badge + Logout Button
-                <div className="flex items-center gap-2 bg-neutral-50 border border-neutral-200 px-3 py-1.5 rounded-lg shadow-sm">
+                // When Logged In: Distinct Logo/Agency Link & Separated Logout Button
+                <div className="flex items-center gap-4">
                   <Link
                     href="/dashboard"
-                    className="flex items-center gap-2 text-xs font-semibold text-neutral-800 hover:text-blue-600 transition"
+                    className="flex items-center gap-2.5 group py-1 px-2 rounded-lg hover:bg-neutral-50 transition border border-transparent hover:border-neutral-200"
                   >
-                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                    {publisher.publisher_name}
+                    <div className="w-8 h-8 rounded-full bg-neutral-100 border border-neutral-300 overflow-hidden shrink-0 flex items-center justify-center">
+                      {publisher.logo_url ? (
+                        <img src={publisher.logo_url} alt={publisher.publisher_name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-[10px] font-bold text-neutral-600">
+                          {publisher.publisher_name?.[0] || 'V'}
+                        </span>
+                      )}
+                    </div>
+                    <div className="hidden sm:flex flex-col text-left">
+                      <span className="text-xs font-bold text-neutral-900 group-hover:text-blue-600 transition truncate max-w-[140px]">
+                        {publisher.publisher_name}
+                      </span>
+                      <span className="text-[10px] text-neutral-400 font-medium">Dashboard</span>
+                    </div>
                   </Link>
-                  <span className="text-neutral-300">|</span>
+
+                  <div className="h-5 w-[1px] bg-neutral-200"></div>
+
                   <LogoutButton />
                 </div>
               ) : (

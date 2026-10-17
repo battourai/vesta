@@ -31,8 +31,6 @@ export default function PropertyDetailPage() {
 
     async function fetchProperty() {
       try {
-        // Passes the full slug (e.g., house-for-sale-in-makati-a1b2c3d4) to your backend.
-        // Your backend API query matches it via listing_uuid or ID seamlessly!
         const res = await fetch(`/api/properties/${id}`);
         const data = await res.json();
 
@@ -57,7 +55,6 @@ export default function PropertyDetailPage() {
     setSubmitting(true);
     setSuccessMsg('');
 
-    // Sanitize local number by removing spaces, dashes, and any non-digit characters, then combine with country code
     const cleanDigits = inquiryForm.phone_number.replace(/\D/g, '');
     const formattedPhone = cleanDigits ? `${inquiryForm.country_code}${cleanDigits}` : null;
 
@@ -168,7 +165,7 @@ export default function PropertyDetailPage() {
                     <span className="bg-neutral-900 text-white text-xs font-semibold px-2.5 py-1 rounded uppercase">
                       {property.operation || 'For Sale'}
                     </span>
-                    <span className="text-neutral-400 text-xs font-medium">Ref ID: #{property.id}</span>
+                    <span className="text-neutral-400 text-xs font-medium">Ref ID: {property.reference_id || `#${property.id}`}</span>
                   </div>
                   
                   <h1 className="text-xl sm:text-2xl font-extrabold text-neutral-900 leading-snug break-words">
@@ -238,18 +235,27 @@ export default function PropertyDetailPage() {
             )}
           </div>
 
-          {/* Right 1 Column: Publisher Agency & Contact Inquiry Form */}
+          {/* Right 1 Column: Contact Inquiry Form with Publisher Logo Header */}
           <div className="space-y-6">
             
             {/* Contact & Inquiry Box */}
             <div className="bg-white p-6 rounded-xl border border-neutral-200 shadow-sm space-y-4">
               
-              {/* Publisher Agency Name Badge */}
-              <div className="bg-neutral-50 p-3 rounded-lg border border-neutral-100 text-xs">
-                <span className="text-neutral-400 block mb-0.5">Listed By Agency</span>
-                <span className="font-bold text-neutral-900 text-sm">
-                  {property.publisher_name || 'Independent Publisher'}
-                </span>
+              {/* Listed By Agency Badge with Logo */}
+              <div className="flex items-center gap-3 bg-neutral-50 p-3 rounded-lg border border-neutral-100">
+                <div className="w-12 h-12 rounded-full bg-neutral-200 border border-neutral-300 overflow-hidden shrink-0 flex items-center justify-center">
+                  {property.publisher_logo ? (
+                    <img src={property.publisher_logo} alt={property.publisher_name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-[10px] text-neutral-400 font-bold">V</span>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[10px] text-neutral-400 block uppercase font-bold tracking-wider">Listed By Agency</span>
+                  <span className="font-bold text-neutral-900 text-sm truncate block">
+                    {property.publisher_name || 'Independent Publisher'}
+                  </span>
+                </div>
               </div>
 
               <h3 className="text-sm font-bold text-neutral-900">Contact Agent / Send Inquiry</h3>

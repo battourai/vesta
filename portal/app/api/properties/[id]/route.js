@@ -36,16 +36,20 @@ export async function GET(request, { params }) {
           property.publisher_name = pubRows[0].publisher_name || pubRows[0].name || 'Independent Publisher';
           property.publisher_email = pubRows[0].email || null;
           property.publisher_phone = pubRows[0].phone || null;
+          property.publisher_logo = pubRows[0].logo_url || null; // <--- Added publisher logo here!
         } else {
           property.publisher_name = 'Independent Publisher';
+          property.publisher_logo = null;
         }
       } else {
         property.publisher_name = 'Independent Publisher';
+        property.publisher_logo = null;
       }
     } catch (pubErr) {
       // If the publishers table has different columns, fallback gracefully instead of throwing a 500 error
       console.warn('Publisher table lookup skipped:', pubErr.message);
       property.publisher_name = 'Independent Publisher';
+      property.publisher_logo = null;
     }
 
     return NextResponse.json(property, { status: 200 });
@@ -101,7 +105,7 @@ export async function PUT(request, { params }) {
            ad_title = ?, ad_description = ?, location_address = ?, 
            latitude = ?, longitude = ?, contact_phone = ?, contact_email = ?,
            main_image = COALESCE(?, main_image), images = COALESCE(?, images)
-       WHERE listing_uuid LIKE ? OR CAST(id AS CHAR) = ?`,
+        WHERE listing_uuid LIKE ? OR CAST(id AS CHAR) = ?`,
       [
         reference_id || null,
         operation || 'Sale',
