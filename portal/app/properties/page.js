@@ -5,51 +5,52 @@ import { slugifyProperty } from '@/lib/slugify';
 export const dynamic = 'force-dynamic';
 
 async function getSearchProperties(searchParams) {
-  try {
-    const keyword = searchParams?.keyword || '';
-    const type = searchParams?.type || '';
-    const operation = searchParams?.operation || '';
-    const sort = searchParams?.sort || 'latest';
+    try {
+      const keyword = searchParams?.keyword || '';
+      const type = searchParams?.type || '';
+      const operation = searchParams?.operation || '';
+      const sort = searchParams?.sort || 'latest';
 
-    // JOIN properties with publishers so we can pull publisher_name
-    let query = `
-      SELECT p.*, pub.publisher_name 
-      FROM properties p 
-      LEFT JOIN publishers pub ON p.publisher_uuid = pub.publisher_uuid 
-      WHERE 1=1
-    `;
-    let queryParams = [];
+      // JOIN properties with publishers and ensure only active, published items show up
+      let query = `
+        SELECT p.*, pub.publisher_name 
+        FROM properties p 
+        LEFT JOIN publishers pub ON p.publisher_uuid = pub.publisher_uuid 
+        WHERE (p.deleted = 0 OR p.deleted IS NULL) 
+          AND p.is_published = 1
+      `;
+      let queryParams = [];
 
-    if (keyword) {
-      query += ' AND (p.ad_title LIKE ? OR p.ad_description LIKE ? OR p.location_address LIKE ?)';
-      queryParams.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
+      if (keyword) {
+        query += ' AND (p.ad_title LIKE ? OR p.ad_description LIKE ? OR p.location_address LIKE ?)';
+        queryParams.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
+      }
+
+      if (type) {
+        query += ' AND p.property_type = ?';
+        queryParams.push(type);
+      }
+
+      if (operation) {
+        query += ' AND p.operation = ?';
+        queryParams.push(operation);
+      }
+
+      if (sort === 'price_asc') {
+        query += ' ORDER BY p.price ASC';
+      } else if (sort === 'price_desc') {
+        query += ' ORDER BY p.price DESC';
+      } else {
+        query += ' ORDER BY p.id DESC';
+      }
+
+      const [rows] = await pool.query(query, queryParams);
+      return rows;
+    } catch (error) {
+      console.error('Failed to fetch search results:', error);
+      return [];
     }
-
-    if (type) {
-      query += ' AND p.property_type = ?';
-      queryParams.push(type);
-    }
-
-    if (operation) {
-      query += ' AND p.operation = ?';
-      queryParams.push(operation);
-    }
-
-    if (sort === 'price_asc') {
-      query += ' ORDER BY p.price ASC';
-    } else if (sort === 'price_desc') {
-      query += ' ORDER BY p.price DESC';
-    } else {
-      query += ' ORDER BY p.id DESC';
-    }
-
-    const [rows] = await pool.query(query, queryParams);
-    return rows;
-  } catch (error) {
-    console.error('Failed to fetch search results:', error);
-    return [];
   }
-}
 
 export default async function PropertiesSearchPage({ searchParams }) {
   const resolvedParams = await searchParams;

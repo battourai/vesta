@@ -14,9 +14,45 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// GET: Fetch all public properties (automatically filters out soft-deleted and unpublished inventory)
+export async function GET(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const operation = searchParams.get('operation');
+    const propertyType = searchParams.get('property_type');
+
+    let query = `
+      SELECT p.*, pub.logo_url as publisher_logo, pub.publisher_name 
+      FROM properties p
+      LEFT JOIN publishers pub ON p.publisher_uuid = pub.publisher_uuid
+      WHERE (p.deleted = 0 OR p.deleted IS NULL) 
+        AND p.is_published = 1
+    `;
+    const queryParams = [];
+
+    if (operation) {
+      query += ` AND p.operation = ?`;
+      queryParams.push(operation);
+    }
+
+    if (propertyType) {
+      query += ` AND p.property_type = ?`;
+      queryParams.push(propertyType);
+    }
+
+    query += ` ORDER BY p.id DESC`;
+
+    const [rows] = await pool.query(query, queryParams);
+    return NextResponse.json(rows, { status: 200 });
+  } catch (error) {
+    console.error('Failed to fetch public properties:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+// POST: Create a new property listing (tied to logged-in publisher)
 export async function POST(request) {
   try {
-    // 1. Verify the user session cookie and extract publisher_uuid
     const cookieStore = await cookies();
     const token = cookieStore.get('vesta_session')?.value;
 
@@ -36,7 +72,6 @@ export async function POST(request) {
 
     const uploadedImageUrls = [];
 
-    // 2. Loop through all images from frontend and upload to Cloudinary
     if (Array.isArray(data.images) && data.images.length > 0) {
       for (const img of data.images) {
         if (img.url && img.url.startsWith('data:image')) {
@@ -50,21 +85,19 @@ export async function POST(request) {
       }
     }
 
-    // 3. Extract the main cover image and format the rest as a string
     const mainImage = uploadedImageUrls.length > 0 ? uploadedImageUrls[0] : null;
     const imagesString = uploadedImageUrls.join(',');
 
-    // 4. Insert including publisher_uuid
     const query = `
       INSERT INTO properties (
         publisher_uuid, listing_uuid, reference_id, ad_title, ad_description, operation, property_type, price,
         lot_area, location_address, latitude, longitude, bedrooms, bathrooms, floor_area, 
-        contact_phone, contact_email, messenger, main_image, images
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        contact_phone, contact_email, messenger, main_image, images, is_published, deleted
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)
     `;
 
     const values = [
-      publisherUuid, // Tied directly to the logged-in user's publisher profile!
+      publisherUuid,
       listingUuid,
       data.reference_id || null,
       data.ad_title,

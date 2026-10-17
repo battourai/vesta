@@ -6,7 +6,13 @@ export const dynamic = 'force-dynamic';
 
 async function getFeaturedProperties() {
   try {
-    const [rows] = await pool.query('SELECT * FROM properties ORDER BY id DESC LIMIT 6');
+    const [rows] = await pool.query(`
+      SELECT * FROM properties 
+      WHERE (deleted = 0 OR deleted IS NULL) 
+        AND is_published = 1 
+      ORDER BY id DESC 
+      LIMIT 6
+    `);
     return rows;
   } catch (error) {
     console.error('Database connection error:', error.message);

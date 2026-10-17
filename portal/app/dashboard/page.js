@@ -3,6 +3,8 @@ import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
 import pool from '@/lib/db';
 import ProfileForm from '@/components/ProfileForm';
+import ListingForm from '@/components/ListingForm';
+import ListingActions from '@/components/ListingActions'; // Client component for buttons
 
 export const dynamic = 'force-dynamic';
 
@@ -17,18 +19,17 @@ async function getDashboardData() {
 
     const decoded = jwt.verify(token, JWT_SECRET);
     
-    // Fetch publisher details, properties, and received inquiries/leads
     const [publisherRows] = await pool.query(
       'SELECT * FROM publishers WHERE publisher_uuid = ?',
       [decoded.publisher_uuid]
     );
 
+    // Fetch only active (non-soft-deleted) properties and include created_at & is_published
     const [propertyRows] = await pool.query(
-      'SELECT * FROM properties WHERE publisher_uuid = ? ORDER BY id DESC',
+      'SELECT * FROM properties WHERE publisher_uuid = ? AND deleted_at IS NULL ORDER BY id DESC',
       [decoded.publisher_uuid]
     );
 
-    // Fetch inquiries associated with this publisher's listings
     let inquiryRows = [];
     if (propertyRows.length > 0) {
       const listingUuids = propertyRows.map(p => p.listing_uuid).filter(Boolean);
@@ -60,6 +61,7 @@ async function getDashboardData() {
 export default async function DashboardPage({ searchParams }) {
   const resolvedSearchParams = await searchParams;
   const activeTab = resolvedSearchParams?.tab || 'listings';
+  const editId = resolvedSearchParams?.id;
 
   const { user, publisher, properties, inquiries } = await getDashboardData();
 
@@ -80,6 +82,19 @@ export default async function DashboardPage({ searchParams }) {
     );
   }
 
+  const propertyToEdit = editId ? properties.find(p => String(p.id) === String(editId)) : null;
+
+  /// Group properties robustly (case-insensitive & default fallback to For Sale)
+  const forSaleListings = properties.filter(p => {
+    const op = (p.operation || '').toLowerCase();
+    return op.includes('sale') || op === '' || op === 'sale';
+  });
+  
+  const forRentListings = properties.filter(p => {
+    const op = (p.operation || '').toLowerCase();
+    return op.includes('rent');
+  });
+
   return (
     <main className="min-h-screen bg-neutral-100 pb-16">
       {/* Top Header Banner */}
@@ -98,7 +113,7 @@ export default async function DashboardPage({ searchParams }) {
           </div>
           <div className="flex items-center gap-3">
             <Link
-              href="/post-property"
+              href="/dashboard?tab=create"
               className="bg-neutral-900 hover:bg-neutral-800 text-white font-medium px-4 py-2.5 rounded-md text-xs transition shadow-sm"
             >
               + Post New Listing
@@ -152,6 +167,17 @@ export default async function DashboardPage({ searchParams }) {
             </Link>
 
             <Link
+              href="/dashboard?tab=create"
+              className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold transition ${
+                activeTab === 'create'
+                  ? 'bg-neutral-900 text-white shadow-sm'
+                  : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
+              }`}
+            >
+              <span>➕ Post New Listing</span>
+            </Link>
+
+            <Link
               href="/dashboard?tab=profile"
               className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold transition ${
                 activeTab === 'profile'
@@ -166,10 +192,10 @@ export default async function DashboardPage({ searchParams }) {
           {/* Right Main Panel */}
           <div className="lg:col-span-3 space-y-6">
             
-            {/* TAB 1: LISTINGS */}
+            {/* TAB 1: LISTINGS GROUPED IN COLUMNS */}
             {activeTab === 'listings' && (
-              <div>
-                <div className="flex justify-between items-center mb-6">
+              <div className="space-y-8">
+                <div className="flex justify-between items-center">
                   <h2 className="text-lg font-bold text-neutral-900">
                     Active Property Inventory <span className="text-sm font-normal text-neutral-500">({properties.length})</span>
                   </h2>
@@ -180,81 +206,34 @@ export default async function DashboardPage({ searchParams }) {
                     <h3 className="text-base font-semibold text-neutral-900">No properties posted yet</h3>
                     <p className="text-neutral-500 text-xs mt-1 mb-4">Start showcasing your real estate inventory to potential buyers.</p>
                     <Link
-                      href="/post-property"
+                      href="/dashboard?tab=create"
                       className="inline-block bg-neutral-900 text-white text-xs font-semibold px-4 py-2.5 rounded-md hover:bg-neutral-800 transition"
                     >
                       Create First Listing
                     </Link>
                   </div>
                 ) : (
-                  <div className="bg-white rounded-xl shadow-sm border border-neutral-200 overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse">
-                        <thead>
-                          <tr className="bg-neutral-50 border-b border-neutral-200 text-[11px] font-bold uppercase tracking-wider text-neutral-500">
-                            <th className="py-3 px-4">Property</th>
-                            <th className="py-3 px-4">Type / Specs</th>
-                            <th className="py-3 px-4">Price</th>
-                            <th className="py-3 px-4 text-right">Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-neutral-100 text-xs">
-                          {properties.map((property) => (
-                            <tr key={property.id} className="hover:bg-neutral-50/80 transition">
-                              <td className="py-3.5 px-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-14 h-14 bg-neutral-200 rounded-lg overflow-hidden shrink-0 border border-neutral-200">
-                                    {property.main_image ? (
-                                      <img src={property.main_image} alt={property.ad_title} className="w-full h-full object-cover" />
-                                    ) : (
-                                      <div className="w-full h-full flex items-center justify-center text-neutral-400 text-[10px]">No Image</div>
-                                    )}
-                                  </div>
-                                  <div className="min-w-0">
-                                    <span className="font-bold text-neutral-900 block truncate max-w-[220px] sm:max-w-xs">{property.ad_title}</span>
-                                    <span className="text-neutral-500 text-[11px] block truncate max-w-[220px] sm:max-w-xs">📍 {property.location_address || 'Unspecified location'}</span>
-                                    <span className="text-[10px] text-neutral-400 font-medium">Ref ID: {property.reference_id || `#${property.id}`}</span>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="py-3.5 px-4 align-middle">
-                                <span className="inline-block bg-neutral-900 text-white text-[10px] font-semibold px-2 py-0.5 rounded uppercase mb-1">
-                                  {property.operation || 'For Sale'}
-                                </span>
-                                <div className="text-neutral-600 text-[11px] space-x-2">
-                                  <span>🛏️ {property.bedrooms || 0}</span>
-                                  <span>🛁 {property.bathrooms || 0}</span>
-                                  <span>📏 {property.floor_area || 0} sqm</span>
-                                </div>
-                              </td>
-                              <td className="py-3.5 px-4 align-middle">
-                                <span className="font-extrabold text-neutral-900 text-sm block">₱{Number(property.price || 0).toLocaleString()}</span>
-                              </td>
-                              <td className="py-3.5 px-4 align-middle text-right">
-                                <div className="flex items-center justify-end gap-2">
-                                  <Link href={`/edit-property/${property.id}`} className="bg-neutral-100 hover:bg-neutral-200 text-neutral-900 font-semibold px-3 py-1.5 rounded-md transition text-xs border border-neutral-300">
-                                    ✏️ Edit
-                                  </Link>
-                                  <Link
-                                    href={`/properties/${
-                                      property.ad_title
-                                        ? property.ad_title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') +
-                                          '_' +
-                                          (property.listing_uuid ? property.listing_uuid.slice(-6) : property.id)
-                                        : property.listing_uuid || property.id
-                                    }`}
-                                    className="bg-neutral-900 hover:bg-neutral-800 text-white font-semibold px-3 py-1.5 rounded-md transition text-xs"
-                                  >
-                                    View
-                                  </Link>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
+                  <>
+                    {/* GROUP 1: FOR SALE */}
+                    {forSaleListings.length > 0 && (
+                      <div className="space-y-3">
+                        <h3 className="text-sm font-extrabold uppercase tracking-wider text-neutral-700 bg-neutral-200/60 px-3 py-1.5 rounded-md inline-block">
+                          🏷️ For Sale ({forSaleListings.length})
+                        </h3>
+                        <PropertyListTable properties={forSaleListings} />
+                      </div>
+                    )}
+
+                    {/* GROUP 2: FOR RENT */}
+                    {forRentListings.length > 0 && (
+                      <div className="space-y-3">
+                        <h3 className="text-sm font-extrabold uppercase tracking-wider text-neutral-700 bg-neutral-200/60 px-3 py-1.5 rounded-md inline-block">
+                          🔑 For Rent ({forRentListings.length})
+                        </h3>
+                        <PropertyListTable properties={forRentListings} />
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -308,7 +287,36 @@ export default async function DashboardPage({ searchParams }) {
               </div>
             )}
 
-            {/* TAB 3: PROFILE SETTINGS */}
+            {/* TAB 3: CREATE LISTING */}
+            {activeTab === 'create' && (
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-lg font-bold text-neutral-900">Post New Property Listing</h2>
+                </div>
+                <ListingForm />
+              </div>
+            )}
+
+            {/* TAB 4: EDIT LISTING */}
+            {activeTab === 'edit' && (
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-lg font-bold text-neutral-900">Edit Property Listing</h2>
+                </div>
+                {propertyToEdit ? (
+                  <ListingForm initialData={propertyToEdit} />
+                ) : (
+                  <div className="bg-white p-8 rounded-xl text-center border border-neutral-200">
+                    <p className="text-xs text-neutral-500">Property not found or you do not have permission to edit it.</p>
+                    <Link href="/dashboard?tab=listings" className="mt-3 inline-block text-xs font-semibold text-blue-600 hover:underline">
+                      &larr; Back to Listings
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 5: PROFILE SETTINGS */}
             {activeTab === 'profile' && (
               <div>
                 <div className="flex justify-between items-center mb-6">
@@ -323,5 +331,69 @@ export default async function DashboardPage({ searchParams }) {
         </div>
       </div>
     </main>
+  );
+}
+
+// Sub-component for rendering the property table with creation date and action buttons
+function PropertyListTable({ properties }) {
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-neutral-200 overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-neutral-50 border-b border-neutral-200 text-[11px] font-bold uppercase tracking-wider text-neutral-500">
+              <th className="py-3 px-4">Property</th>
+              <th className="py-3 px-4">Type / Specs</th>
+              <th className="py-3 px-4">Price</th>
+              <th className="py-3 px-4">Created Date</th>
+              <th className="py-3 px-4 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-neutral-100 text-xs">
+            {properties.map((property) => (
+              <tr key={property.id} className="hover:bg-neutral-50/80 transition">
+                <td className="py-3.5 px-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-14 h-14 bg-neutral-200 rounded-lg overflow-hidden shrink-0 border border-neutral-200 relative">
+                      {property.main_image ? (
+                        <img src={property.main_image} alt={property.ad_title} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-neutral-400 text-[10px]">No Image</div>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-neutral-900 block truncate max-w-[200px] sm:max-w-xs">{property.ad_title}</span>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-semibold uppercase ${property.is_published ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                          {property.is_published ? 'Published' : 'Draft / Hidden'}
+                        </span>
+                      </div>
+                      <span className="text-neutral-500 text-[11px] block truncate max-w-[200px] sm:max-w-xs">📍 {property.location_address || 'Unspecified location'}</span>
+                      <span className="text-[10px] text-neutral-400 font-medium">Ref ID: {property.reference_id || `#${property.id}`}</span>
+                    </div>
+                  </div>
+                </td>
+                <td className="py-3.5 px-4 align-middle">
+                  <div className="text-neutral-600 text-[11px] space-x-2">
+                    <span>🛏️ {property.bedrooms || 0}</span>
+                    <span>🛁 {property.bathrooms || 0}</span>
+                    <span>📏 {property.floor_area || 0} sqm</span>
+                  </div>
+                </td>
+                <td className="py-3.5 px-4 align-middle">
+                  <span className="font-extrabold text-neutral-900 text-sm block">₱{Number(property.price || 0).toLocaleString()}</span>
+                </td>
+                <td className="py-3.5 px-4 align-middle text-neutral-500 text-[11px]">
+                  {property.created_at ? new Date(property.created_at).toLocaleDateString() : '—'}
+                </td>
+                <td className="py-3.5 px-4 align-middle text-right">
+                  <ListingActions property={property} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
